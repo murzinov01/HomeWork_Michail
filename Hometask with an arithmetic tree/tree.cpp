@@ -13,7 +13,7 @@ enum TYPE{
 
 void check_nodes_with_signes() {
     for (int i = 0; i < nodes_number; i++)
-        if (nodes_with_signes[i]->right && nodes_with_signes[i]->left && (!(nodes_with_signes[i]->right->is_signe) && !(nodes_with_signes[i]->left->is_signe)))
+        if (nodes_with_signes[i]->right && nodes_with_signes[i]->left && ((!(nodes_with_signes[i]->right->is_signe) && !(nodes_with_signes[i]->left->is_signe)) || !(nodes_with_signes[i]->right->is_signe)&& nodes_with_signes[i]->left->full == FULL || !(nodes_with_signes[i]->left->is_signe) && nodes_with_signes[i]->right->full == FULL))
             nodes_with_signes[i]->full = FULL;
 }
 
@@ -84,7 +84,10 @@ int calculate_expression(int num1, int num2, char sign) {
 int calculate_tree(Node* root) {
     for (int i = nodes_number - 1; i >= 1 ; i--)
         nodes_with_signes[i]->num = calculate_expression(nodes_with_signes[i]->left->num, nodes_with_signes[i]->right->num, nodes_with_signes[i]->op);
-    result = calculate_expression(nodes_with_signes[0]->left->num, nodes_with_signes[0]->right->num, nodes_with_signes[0]->op);
+    if (!nodes_with_signes[0]->right->is_signe)
+        result = calculate_expression(nodes_with_signes[0]->left->num, nodes_with_signes[0]->right->num, nodes_with_signes[0]->op);
+    else
+        result = calculate_expression(nodes_with_signes[0]->right->num, nodes_with_signes[0]->left->num, nodes_with_signes[0]->op);
     return result;
 }
 
