@@ -82,7 +82,7 @@ void NumberOfFilesInDirectory(NODE* root, int* number)
 		NumberOfFilesInDirectory(p->brother, number);
 }
 
-Node* Find(char* path, FILE* fout, int* size, Node* root)
+Node* Find(char* path, FILE* fout, unsigned long int* size, Node* root)
 {
 	struct _finddata_t fc;
 	intptr_t  hFile = _findfirst(path, &fc);
@@ -112,7 +112,7 @@ Node* Find(char* path, FILE* fout, int* size, Node* root)
 	return root;
 }
 
-void FindTheHugeFiles(NODE* root, FILE* fout, char* path, int* size)
+void FindTheHugeFiles(NODE* root, FILE* fout, char* path, unsigned long int* size)
 {
 	strcat(path, "\\*");
 	root = Find(path, fout, size, root);
