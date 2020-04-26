@@ -44,30 +44,30 @@ void print(Node* root, int level)
 
 // FOR TASK 1
 
-// Ищем подходящие узлы под полное дерево
+// Looking for suitable nodes for the full tree
 void find_the_correct_nodes(Node* root)
 {
     if (root)
     {
         find_the_correct_nodes(root->left);
         find_the_correct_nodes(root->right);
-        // Если детей у узла нет, либо присутствуют оба
+        // If the node has no children, or both are present
         if ((root->left && root->right) || (!(root->left && !root->right)))
             root->correct = CORRECT;
 
-        // Если левый узел несет под собой неправильное дерево
+        // If the left node carries the wrong tree under it
         if (root->left) 
             if (root->left->correct == UNCORRECT) 
                 root->correct = UNCORRECT;
 
-        // Если правый узел несет под собой неправильное дерево
+        // If the right node carries the wrong tree under it
         if (root->right) 
             if (root->right->correct == UNCORRECT) 
                 root->correct = UNCORRECT;
     }
 }
 
-// Используя подходящие узлы, находим значения самого большого полного дерева
+// Using suitable nodes, we find the nodes of the largest complete tree
 void find_the_full_tree(Node* root, int* tree_size, int* max_tree_size, int* tree_values, int* max_tree_values)
 {
     if (root)
@@ -75,11 +75,11 @@ void find_the_full_tree(Node* root, int* tree_size, int* max_tree_size, int* tre
         find_the_full_tree(root->left, tree_size, max_tree_size, tree_values, max_tree_values);
         find_the_full_tree(root->right, tree_size, max_tree_size, tree_values, max_tree_values);
 
-        // Если нашли узел правильного дерева
+        // If you find a node in the correct tree
         if (root->correct == CORRECT)
             tree_values[(*tree_size)++] = root->num;
 
-        // Выходим из правильного дерева, сохраняем его
+        // Getting out of the correct tree and saving it
         else if (root->correct == UNCORRECT)
         {
             if (*max_tree_size < *tree_size)
@@ -93,7 +93,7 @@ void find_the_full_tree(Node* root, int* tree_size, int* max_tree_size, int* tre
     }
 }
 
-// Используя эти значения собираем дерево
+// Using these nodes we build a tree
 Node* create_the_full_tree(Node* root, int* tree_size, int* tree_values)
 {
     for (int i = *tree_size - 1; i >= 0; i--)
@@ -107,10 +107,10 @@ void find_paths(Node* root, int* path, int* max_path, int* path_values, int* max
 {
     if (root)
     {
-        // Если один ребенок
+        // If one child
         if (!(root->left) && root->right || root->left && !(root->right))
             path_values[(*path)++] = root->num;
-        // Если уперлись в лист (у узла нет детей)
+        // If you hit a leaf (the node has no children)
         if (!root->left && !root->right)
         {
             path_values[*path] = root->num;
@@ -122,7 +122,7 @@ void find_paths(Node* root, int* path, int* max_path, int* path_values, int* max
             }
             *path = 0;
         }
-        // Если уперлись в разветвление
+        // If you hit a fork
         else if (root->left && root->right && *path > 0)
         {
             if (*max_path < *path)
@@ -160,7 +160,7 @@ void cointing_nodes(Node* root)
         cointing_nodes(root->left);
         cointing_nodes(root->right);
 
-        // Считаем детей узла
+        // Consider children of a node
         if (!root->right && !root->left)
             root->nodes++;
         else if (root->right && root->left)
@@ -176,7 +176,7 @@ void find_the_lowest_suitable_tree(Node* root, int* tree_size, int* current_min_
 {
     if (root)
     {
-        // Нашли корень подхлдящего дерева
+        // Found the root of a suitable tree
         if (root->nodes == root->num && root->num < *current_min_size)
         {
             *current_min_size = root->num;
@@ -186,11 +186,11 @@ void find_the_lowest_suitable_tree(Node* root, int* tree_size, int* current_min_
         }
         else
         {   
-            // Добавляем узлы в подходящее дерево
+            // Adding nodes to the appropriate tree
             if (root->level > TARGET_LEVEL) {
                 tree_values[(*tree_size)++] = root->num;
             }
-            // Вышли из подходящего дерева
+            // Comming out of a suitable tree
             else
                 TARGET_LEVEL = MAX_SIZE;
         }
