@@ -73,14 +73,9 @@ void find_the_full_tree(Node* root, int* tree_size, int* max_tree_size, int* tre
     if (root)
     {
         find_the_full_tree(root->left, tree_size, max_tree_size, tree_values, max_tree_values);
-        find_the_full_tree(root->right, tree_size, max_tree_size, tree_values, max_tree_values);
-
-        // If you find a node in the correct tree
-        if (root->correct == CORRECT)
-            tree_values[(*tree_size)++] = root->num;
 
         // Getting out of the correct tree and saving it
-        else if (root->correct == UNCORRECT)
+        if (root->correct == UNCORRECT)
         {
             if (*max_tree_size < *tree_size)
             {
@@ -90,6 +85,11 @@ void find_the_full_tree(Node* root, int* tree_size, int* max_tree_size, int* tre
             }
             *tree_size = 0;
         }
+        find_the_full_tree(root->right, tree_size, max_tree_size, tree_values, max_tree_values);
+
+        // If you find a node in the correct tree
+        if (root->correct == CORRECT)
+            tree_values[(*tree_size)++] = root->num;
     }
 }
 
