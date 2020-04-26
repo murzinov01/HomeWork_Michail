@@ -48,7 +48,7 @@ int main()
 
 	//				TASK 3
 	// initialization of the tree
-	int level = 0, tree_size = 0, current_min_size = MAX_SIZE;
+	/*int level = 0, tree_size = 0, current_min_size = MAX_SIZE;
 	int tree_values[MAX_SIZE] = { 0 };
 	Node* new_root = NULL;
 	Node* the_lowest_suitable_tree = NULL;
@@ -73,7 +73,7 @@ int main()
 	SetConsoleTextAttribute(hConsole, 9 % 15);
 	printf("THE LOWEST SUITABLE TREE: \n");
 	SetConsoleTextAttribute(hConsole, 10 % 15);
-	print(the_lowest_suitable_tree, 0);
+	print(the_lowest_suitable_tree, 0);*/
 
 	return 0;
 }
