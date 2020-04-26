@@ -52,7 +52,7 @@ void find_the_correct_nodes(Node* root)
         find_the_correct_nodes(root->left);
         find_the_correct_nodes(root->right);
         // If the node has no children, or both are present
-        if ((root->left && root->right) || (!(root->left && !root->right)))
+        if ((root->left && root->right) || (!(root->left) && !(root->right))) 
             root->correct = CORRECT;
 
         // If the left node carries the wrong tree under it
@@ -62,7 +62,7 @@ void find_the_correct_nodes(Node* root)
 
         // If the right node carries the wrong tree under it
         if (root->right) 
-            if (root->right->correct == UNCORRECT) 
+            if (root->right->correct == UNCORRECT)
                 root->correct = UNCORRECT;
     }
 }
@@ -86,6 +86,17 @@ void find_the_full_tree(Node* root, int* tree_size, int* max_tree_size, int* tre
             *tree_size = 0;
         }
         find_the_full_tree(root->right, tree_size, max_tree_size, tree_values, max_tree_values);
+
+        if (root->correct == UNCORRECT)
+        {
+            if (*max_tree_size < *tree_size)
+            {
+                *max_tree_size = *tree_size;
+                for (int i = 0; i < *max_tree_size; i++)
+                    max_tree_values[i] = tree_values[i];
+            }
+            *tree_size = 0;
+        }
 
         // If you find a node in the correct tree
         if (root->correct == CORRECT)
