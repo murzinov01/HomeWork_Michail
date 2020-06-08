@@ -1,7 +1,5 @@
 // server.cpp : Этот файл содержит функцию "main". Здесь начинается и заканчивается выполнение программы.
-//
 
-// #include "pch.h"
 #define _CRT_SECURE_NO_WARNINGS
 #define HAVE_STRUCT_TIMESPEC
 #define MAX_SLOTS 5
@@ -18,43 +16,43 @@ int author[MAX_SLOTS] = { 0 };
 int message_chat_id[MAX_SLOTS] = { 0 };
 char messages[MAX_SLOTS][1024] = { '\0' };
 
+// Функция потока, который слушает чат и отправляет сообщения пользователям, когда они приходит на сервер от члена чата.
 void* listener_chat(void* params)
 {
+	// Принимаем и разбираем параметры
 	CHAT_PARAMS* parametres = (CHAT_PARAMS*)params;
 	SOCKET client = parametres->client_;
 	int chat_id = parametres->chat_id;
 	int user_id = parametres->user_id;
+
 	while (1)
 	{
 		for (int i = 0; i < 5; i++)
-		{
+		{	
+			// Находим тот чат, в который нужно будет прислать сообщения от сервера
 			if (chat_id == message_chat_id[i] && message_chat_id[i])
 			{
 				pthread_mutex_lock(&mutex);
+
+				// Если автор - этот тот пользователь, который прислал сообщение, - ему не будем отсылать.
 				if (author[i] == user_id || !author[i] || !view_count[i])
 				{
 					pthread_mutex_unlock(&mutex);
 					continue;
 				}
-				//pthread_cond_t cond_var = PTHREAD_COND_INITIALIZER;
+
+				// Отсылаем сообщение пользователю, состоящему в чате
 				int ret = send(client, messages[i], sizeof(messages[i]), 0);
 
-				view_count[i]++;
-				// pthread_mutex_unlock(&mutex);
+				view_count[i]++;		 // Прибавляем счетчик пользователей, кому отправилось сообщение
 
 				if (ret == SOCKET_ERROR) // если не удалось подключиться к сокету клиента
 				{
-					//pthread_mutex_lock(&mutex);
 					printf("Error sending data\n");
-				//	pthread_mutex_unlock(&mutex);
 					set_online_status(user_id, 0);
 					return (void*)2;
 				}
-				//pthread_mutex_lock(&mutex);
-				//while (view_count[i] < count_online(chat_id))
-				//pthread_cond_wait(&cond_var, &mutex);
-				//pthread_mutex_unlock(&mutex);
-				//pthread_mutex_lock(&mutex);
+				// Если отправили сообщение всем, кто в чате, обнуляем переменные, чтобы в дальнейшем не заходить в for
 				if (view_count[i] >= count_online(chat_id))
 				{
 					author[i] = 0;
@@ -63,6 +61,8 @@ void* listener_chat(void* params)
 					view_count[i] = 0;
 				}
 				pthread_mutex_unlock(&mutex);
+
+				// Когда поток отправил сообщение своему клиенту, садим его в тюрьму, чтобы он не отправлял повторно
 				while (view_count[i]);
 				break;
 			}
@@ -83,9 +83,11 @@ void* ClientStart(void* param)
 	{
 		char recieve[1024] = { '\0' };
 		char transmit[1024] = { '\0' };
-		//полчение ответа
+
+		//Полчение ответа
 		ret = recv(client, recieve, 1024, 0); // Получаем данные сервера. Ответ от него
-		//обработка ошибок
+
+		//Обработка ошибок
 		if (ret == 0 || ret == WSAECONNRESET) // Если получили ответ от сервера, закрываем соединение
 		{
 			pthread_mutex_lock(&mutex);
@@ -93,12 +95,12 @@ void* ClientStart(void* param)
 			pthread_mutex_unlock(&mutex);
 			return (void*)0;
 		}
-		if (ret < 0) // Если ответ от сервера запаздает, то мы выйдем по ошибке SPCKET_ERROR
+		if (ret < 0)						 // Если ответ от сервера запаздает, то мы выйдем по ошибке SPCKET_ERROR
 			continue;
 
-		recieve[ret] = '\0'; // символ конца строки в конец строки
+		recieve[ret] = '\0';				 // символ конца строки в конец строки
 
-		cmnd = command_definer(recieve);
+		cmnd = command_definer(recieve);	 // Разбираем сообщение от пользователя
 		if (cmnd.command_num == HELP)
 			sprintf_s(transmit, "%d %s\n", COMMAND_HELP, "");
 		else if (!id && cmnd.command_num != LOGIN && cmnd.command_num != REG)
@@ -113,99 +115,136 @@ void* ClientStart(void* param)
 			case HELP:
 				break;
 			case REG:
+				// Если уже вошли в аккаунт
 				if (status_flag == LOGGED)
 				{
 					sprintf_s(transmit, "%d %s\n", COMMAND_REG_MIS, "You are already logged in. if you want to create a new account, log out of the current one");
 					break;
 				}
+
+				// Если уже зарегестрированы
 				if (status_flag == REGISTRED)
 				{
 					sprintf_s(transmit, "%d %s\n", COMMAND_REG_MIS, "The User already registered!");
 					break;
 				}
+
+				// Проверяем, существует ли уже пользователь с таким именем
 				if (check_users(cmnd.args[0]))
 				{
 					sprintf_s(transmit, "%d %s\n", COMMAND_REG_MIS, "This user name already exists.");
 					break;
 				}
+
+				// Если все хорошо - регистриуемся
 				sprintf_s(transmit, "%d %s\n", COMMAND_REG_SUC, "The User is successfully registered!");
 				status_flag = REGISTRED;
 				pthread_mutex_lock(&mutex);
 				id = reg_user(cmnd.args[0], cmnd.args[1]);
+				
+				// Обновляем список пользователей
 				read_all_users();
+
 				pthread_mutex_unlock(&mutex);
 				break;
 			case LOGIN:
+				// Если уже вошли в аккаунт
 				if (status_flag == LOGGED)
 				{
 					sprintf_s(transmit, "%d %s\n", COMMAND_REG_MIS, "The User is already logged in");
 					break;
 				}
+
+				// Проверяем, зарегестрирован ли пользователь 
 				if (!check_users(cmnd.args[0]))
 				{
 					sprintf_s(transmit, "%d %s\n", COMMAND_REG_MIS, "This user does not exist.");
 					break;
 				}
+
+				// Проверяем пароль
 				id = check_password(cmnd.args[0], cmnd.args[1]);
+
 				if (!id)
 				{
 					sprintf_s(transmit, "%d %s\n", COMMAND_REG_MIS, "Invalid password!!");
 					break;
 				}
+				// Если все хорошо, входим в аккаунт
 				sprintf_s(transmit, "%d %s\n", COMMAND_REG_SUC, "The User logged in successfully!");
 				status_flag = LOGGED;
 				break;
 			case CHAT:
+
 				// Если слишком много юзеров
 				if (cmnd.args_num > 9)
 				{
 					sprintf_s(transmit, "%d %s\n", INVALID_CHAT, "Too many users for chat");
 					break;
 				}
+
 				// Если указали не существующих юзеров
 				if (!check_valid_chat(cmnd.args, cmnd.args_num))
 				{
 					sprintf_s(transmit, "%d %s\n", INVALID_CHAT, "Such user or users are not found!");
 					break;
 				}
+
 				// Если все хорошо, ставим создателя чата в конец списка юзеров
 				strcpy(cmnd.args[cmnd.args_num++], find_user_by_id(id));
 				for (int j = cmnd.args_num; j < 10; j++)
 					cmnd.args[j][0] = '\0';
+
 				// Нашли чат
 				chat_id = find_chat(cmnd.args, cmnd.args_num);
+
+				// Структура, через которую передадим параметры в поток
 				CHAT_PARAMS listener_params;
+
 				// Если чат не существует - создаем его
 				if (!chat_id)
 				{
-					chat_id = create_chat(cmnd.args, cmnd.args_num);
-					set_online_status(id, chat_id);
-					listener_params.chat_id = chat_id;
+					chat_id = create_chat(cmnd.args, cmnd.args_num);			// Создали чат
+					set_online_status(id, chat_id);								// Устанавливаем пользователь в режим "онлайн" в чате
+					listener_params.chat_id = chat_id;							// Запихиваем в структуру параметры
 					listener_params.user_id = id;
 					listener_params.client_ = client;
-					int status = pthread_create(&chat_thread, NULL, listener_chat, (void*)&listener_params); // Создаем новый поток для клиента. (void*)client - указатель на сокет клиента
+
+					// Создаем новый поток для клиента. (void*)&listener_params - указатель на структуру с параметрами
+					int status = pthread_create(&chat_thread, NULL, listener_chat, (void*)&listener_params);
 					pthread_detach(chat_thread);
+
+					// Готовимся к отправке "меню чата" со списком пользователей 
 					sprintf_s(transmit, "%d %s %s %s %s %s %s %s %s %s %s\n\0", VALID_CHAT, cmnd.args[0], cmnd.args[1], cmnd.args[2], cmnd.args[3],
 						cmnd.args[4], cmnd.args[5], cmnd.args[6], cmnd.args[7], cmnd.args[8], cmnd.args[9]);
+					
+					// Обновляем список чатов
 					pthread_mutex_lock(&mutex);
 					read_all_chats();
 					pthread_mutex_unlock(&mutex);
 					break;
 				}
-				// Если чат существует
+
+				// Если чат уже существует
 				else
 				{
-					set_online_status(id, chat_id);
-					listener_params.chat_id = chat_id;
+					set_online_status(id, chat_id);								// Устанавливаем пользователь в режим "онлайн" в чате
+					listener_params.chat_id = chat_id;							// Запихиваем в структуру параметры
 					listener_params.user_id = id;
 					listener_params.client_ = client;
-					int status = pthread_create(&chat_thread, NULL, listener_chat, (void*)&listener_params); // Создаем новый поток для клиента. (void*)client - указатель на сокет клиента
+
+					// Создаем новый поток для клиента. (void*)&listener_params - указатель на структуру с параметрами
+					int status = pthread_create(&chat_thread, NULL, listener_chat, (void*)&listener_params);
 					pthread_detach(chat_thread);
+
+					// Готовимся к отправке "меню чата" со списком пользователей 
 					sprintf_s(transmit, "%d %s %s %s %s %s %s %s %s %s %s\n\0", VALID_CHAT, cmnd.args[0], cmnd.args[1], cmnd.args[2], cmnd.args[3],
 						cmnd.args[4], cmnd.args[5], cmnd.args[6], cmnd.args[7], cmnd.args[8], cmnd.args[9]);
+
+					// Отправляем "меню чата" со списком пользователей 
 					ret = send(client, transmit, sizeof(transmit), 0);
 
-					if (ret == SOCKET_ERROR) // если не удалось подключиться к сокету клиента
+					if (ret == SOCKET_ERROR)									// если не удалось подключиться к сокету клиента
 					{
 						pthread_mutex_lock(&mutex);
 						printf("Error sending data\n");
@@ -213,6 +252,8 @@ void* ClientStart(void* param)
 						set_online_status(id, 0);
 						return (void*)2;
 					}
+
+					// Открыеваем файл с перепиской пользователей в формате chat_id.txt
 					char chat_ID[11] = { '\0' };
 					_itoa(chat_id, chat_ID, 10);
 					chat_ID[6] = '.';
@@ -223,6 +264,7 @@ void* ClientStart(void* param)
 					chat_file = fopen(chat_ID, "r");
 					char start_message[1024] = { '\0' };
 
+					// Отправляем сообщению клиенту с меткой начала подгрузки истории чата
 					sprintf_s(start_message, "%d", START_HISTORY);
 					ret = send(client, start_message, sizeof(start_message), 0);
 
@@ -235,10 +277,12 @@ void* ClientStart(void* param)
 						return (void*)2;
 					}
 
+					// Подгружаем и отправляем историю чата
 					while (1)
 					{
+						// Создаем сообщение с меткой-пустышкой 30, чтобы клиент смог отследить сообщения истории
 						char message[1024] = { '3', '0', ' ', '\0' };
-						//if (fscanf(chat_file, "%s %1000[^\0]", message[3]) == EOF)
+						// Если дошли до конца файла отправляем сообщение с меткой конца истории
 						if (feof(chat_file) || fgets(message + 3, 1000, chat_file) == NULL)
 						{
 							sprintf_s(start_message, "%d", END_HISTORY);
@@ -254,6 +298,7 @@ void* ClientStart(void* param)
 							}
 							break;
 						}
+						// Отправляем сообщения истории чата
 						else
 						{
 							ret = send(client, message, sizeof(message), 0);
@@ -268,13 +313,15 @@ void* ClientStart(void* param)
 							}
 						}
 					}
+
+					// Закрывает файл с историей сообщений
 					fclose(chat_file);
 					continue;
 				}
 			case CHAT_EXIT:
-				set_online_status(id, 0);
+				set_online_status(id, 0);										// Пользователь выходит из режима "онлайн" в чата
 				chat_id = 0;
-				pthread_cancel(chat_thread);
+				pthread_cancel(chat_thread);									// Закрываем поток, обрабатывающий сообщения от пользователя
 				sprintf_s(transmit, "%d %s\n", EXIT_CHAT, "Pokinyla chat, chat, chat, chat...");
 				break;
 			case MESSAGE:
@@ -282,7 +329,11 @@ void* ClientStart(void* param)
 				char buf[1024] = { '\0' };
 				char user_name[50] = { '\0' };
 				strcpy(user_name, find_user_by_id(id));
+
+				// Загружаем сообщение пользователя с меткой NEW_MESSAGE и отправляем в массив с собщенияеми, который смотрят потоки пользователей
 				sprintf(buf, "%d [%s]: %s\n", NEW_MESSAGE, user_name, cmnd.message);
+
+				// Загружаем сообщение в файл с историей чата
 				char chat_Id[11] = { '\0' };
 				_itoa(chat_id, chat_Id, 10);
 				chat_Id[6] = '.';
@@ -294,6 +345,8 @@ void* ClientStart(void* param)
 				fprintf(chat_file, "%s", buf + 2);
 				fclose(chat_file);
 				pthread_mutex_unlock(&mutex);
+
+				// Если оба пользователя зашли в чат, то их сообщений начинаю пробрасываться через глабальные переменные, массивы, которые обрабатывают потоки
 				if (count_online(chat_id) > 1) {
 					for (int i = 0; i < MAX_SLOTS; i++)
 					{
@@ -311,6 +364,7 @@ void* ClientStart(void* param)
 			}
 		}
 
+		// Отправляем серверное сообщение
 		ret = send(client, transmit, sizeof(transmit), 0);
 
 		if (ret == SOCKET_ERROR) // если не удалось подключиться к сокету клиента
@@ -342,9 +396,9 @@ int CreateServer()
 
 	// Связываем сервер с его IP и портом
 	// Запускаем сервер по его IP и порту
-	localaddr.sin_addr.S_un.S_addr = htonl(INADDR_ANY); // приводим ip адрес к единому стандартному виду
+	localaddr.sin_addr.S_un.S_addr = htonl(INADDR_ANY);			// приводим ip адрес к единому стандартному виду
 	localaddr.sin_family = AF_INET;
-	localaddr.sin_port = htons(5510);// Приводим адрес порта к стандартному виду. port number is for example, must be more than 1024
+	localaddr.sin_port = htons(5510);							// Приводим адрес порта к стандартному виду. port number is for example, must be more than 1024
 
 	if (bind(server, (sockaddr*)&localaddr, sizeof(localaddr)) == SOCKET_ERROR) // Связываем сервер с его IP и портом
 	{
@@ -359,8 +413,9 @@ int CreateServer()
 	read_all_users();
 	read_all_chats();
 
-	listen(server, 50);//50 клиентов в очереди могут стоять. Сервер слушает порт, с которым мы его связали
+	listen(server, 50);											//50 клиентов в очереди могут стоять. Сервер слушает порт, с которым мы его связали
 	pthread_mutex_init(&mutex, NULL);
+
 	while (1)
 	{
 		size = sizeof(clientaddr);
@@ -372,12 +427,13 @@ int CreateServer()
 			continue;
 		}
 
-		pthread_t mythread; // Запускаем новый поток для связи с клиентом
+		pthread_t mythread;										// Запускаем новый поток для связи с клиентом
 		int status = pthread_create(&mythread, NULL, ClientStart, (void*)client); // Создаем новый поток для клиента. (void*)client - указатель на сокет клиента
 		pthread_detach(mythread);  // Отстегиваем поток от основного, все потоки сами по себе. Дочерний поток завершается и мы об этом не знаем. Он сам по себе
 	}							   // Если основной поток заканчивается, то заканчивается и дочерний
 	pthread_mutex_destroy(&mutex); // Разрушаем мютекс ( на всякий случай )
-	clear_data();
+
+	clear_data();				   // Очищаем память, которую используют массивы
 	printf("Server is stopped\n");
 	closesocket(server);
 	return 0;

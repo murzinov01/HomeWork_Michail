@@ -23,17 +23,19 @@ void* ClientListener(void* params)
 	{
 
 		char message[1024] = { '\0' };
-		int ret = recv(client, message, 1024, 0); // Получаем данные сервера. Ответ от него
-			//обработка ошибок
-		if (ret == 0 || ret == WSAECONNRESET) // Если получили ответ от сервера, закрываем соединение
+		int ret = recv(client, message, 1024, 0);				 // Получаем данные сервера. (Ответ от него)
+
+		//обработка ошибок
+		if (ret == 0 || ret == WSAECONNRESET)					// Если получили ответ от сервера, закрываем соединение
 		{
 			printf("Connection closed\n");
 			return (void*)0;
 		}
-		if (ret < 0) // Если ответ от сервера запаздает, то мы выйдем по ошибке SPCKET_ERROR
+
+		if (ret < 0)											// Если ответ от сервера запаздает, то мы выйдем по ошибке SPCKET_ERROR
 			continue;
 
-		RESPONSE my_response = response_definer(message);
+		RESPONSE my_response = response_definer(message);		// Разбираем ответ от сервера
 
 		switch (my_response.resp)
 		{
@@ -47,19 +49,25 @@ void* ClientListener(void* params)
 			print_dialog_interface(my_response.message);
 			break;
 		case START_HISTORY:
+			// Принимаем историю сообщений
 			while (1)
 			{
 				char new_message[1024] = { '\0' };
-				ret = recv(client, new_message, 1024, 0); // Получаем данные сервера. Ответ от него
+				ret = recv(client, new_message, 1024, 0);		// Получаем данные сервера. Ответ от него
+
 				//обработка ошибок
-				if (ret == 0 || ret == WSAECONNRESET) // Если получили ответ от сервера, закрываем соединение
+				if (ret == 0 || ret == WSAECONNRESET)			// Если получили ответ от сервера, закрываем соединение
 				{
 					printf("Connection closed\n");
 					return (void*)0;
 				}
-				if (ret < 0) // Если ответ от сервера запаздает, то мы выйдем по ошибке SPCKET_ERROR
+
+				if (ret < 0)									// Если ответ от сервера запаздает, то мы выйдем по ошибке SPCKET_ERROR
 					continue;
+
 				my_response = response_definer(new_message);
+
+				// Если приняли метку конца истории - заканчиваем подгружать историю
 				if (my_response.resp == END_HISTORY)
 				{
 					printf("\n");
@@ -82,7 +90,7 @@ void SendData2Server()
 {
 	SOCKET client;
 	
-	client = socket(AF_INET, SOCK_STREAM, IPPROTO_IP); // Создаем сокет клиента, еще не связываясь с сервером
+	client = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);						 // Создаем сокет клиента, еще не связываясь с сервером
 	if (client == INVALID_SOCKET)
 	{
 		printf("Error create socket\n");
@@ -94,11 +102,11 @@ void SendData2Server()
 	server.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");					 //Преобразует строку адреса в число. special look-up address (сетевой адресс компьютера) // Адрес сервера
 	if (connect(client, (sockaddr*)&server, sizeof(server)) == SOCKET_ERROR) // Связывает со своим сокетом структуру данных, которая относится к серверу
 	{
-		printf("Can't connect to server\n");								// Если что-то пошло не так
-		closesocket(client);												// Разрушаем сокет
+		printf("Can't connect to server\n");								 // Если что-то пошло не так
+		closesocket(client);												 // Разрушаем сокет
 		return;
 	}
-	char message[1024];														// Размер как у данных, которые ловит сервер - 1024
+	char message[1024];														 // Размер как у данных, которые ловит сервер - 1024
 	pthread_t mythread;
 	int status = pthread_create(&mythread, NULL, ClientListener, (void*)client); // Создаем новый поток для клиента. (void*)client - указатель на сокет клиента
 	pthread_detach(mythread);
@@ -106,7 +114,6 @@ void SendData2Server()
 	while (1)
 	{
 		gets_s(message, 1000);
-		//sprintf(message, "asdasd<%d client> %s %d", number, "test", count); // Формируем данные
 		int ret = send(client, message, strlen(message), 0);					// Посылаем данные
 		if (ret == SOCKET_ERROR)
 		{
