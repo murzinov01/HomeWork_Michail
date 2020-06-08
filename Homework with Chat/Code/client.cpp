@@ -134,6 +134,8 @@ int main()
 		return 1;
 	}
 
+	printf("    *** Welcome to the C-legram ***\nAll your data is protected by .txt-file\n---------------------------------------\n    use -help to get necessary info\n---------------------------------------\n");
+
 	SendData2Server(); // отправляем дату на сервер
 	return 0;
 }
