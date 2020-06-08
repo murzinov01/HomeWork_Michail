@@ -72,6 +72,7 @@ int read_all_users()
 		ids[i] = atoi(id);
 		i++;
 	}
+	fclose(users);
 	USERS_NUM = i;
 	return i;
 }
@@ -100,7 +101,7 @@ int read_all_chats()
 		i++;
 	}
 	CHATS_NUM = i;
-
+	fclose(chats);
 	return i;
 }
 
@@ -171,6 +172,7 @@ int create_chat(char args[10][50], int users_num)
 		fprintf(chats, " %s", args[i]);
 	}
 	fprintf(chats, "\n");
+	fclose(chats);
 
 	return id;
 }
@@ -223,12 +225,12 @@ int find_id_by_user(char* user)
 	}
 }
 
-void set_online_status(int id, int status)
+void set_online_status(int id, int chat_id)
 {
 	for (int i = 0; i < MAX_CLIENTS; i++)
 		if (id == ids[i])
 		{
-			online_members[i] = status;
+			online_members[i] = chat_id;
 			break;
 		}
 }
@@ -238,24 +240,8 @@ int count_online(int chat_id)
 	int counter = 0;
 	for (int i = 0; i < MAX_CLIENTS; i++)
 	{
-		// »щем чат
-		if (chats_id[i] == chat_id)
-		{
-			// »дем по всем учатникам
-			for (int j = 0; j < 10; j++)
-			{
-				// —мотрим, есть ли они в таблице юзеров на данный момент
-				for (int k = 0; k < MAX_CLIENTS; k++)
-				{
-					if ((ids[k] == chats_members[i][j]) && online_members[k])
-					{
-						counter++;
-						break;
-					}
-				}
-			}
-			break;
-		}
+		if (online_members[i] == chat_id)
+			counter++;
 	}
 	return counter;
 }

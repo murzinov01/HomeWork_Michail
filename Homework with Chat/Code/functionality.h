@@ -74,7 +74,7 @@ char* find_user_by_id(int id);
 
 int find_id_by_user(char* user);
 
-void set_online_status(int id, int status);
+void set_online_status(int id, int chat_id);
 
 int count_online(int chat_id);
 

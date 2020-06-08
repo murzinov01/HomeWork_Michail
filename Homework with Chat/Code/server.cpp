@@ -28,31 +28,43 @@ void* listener_chat(void* params)
 	{
 		for (int i = 0; i < 5; i++)
 		{
-			if (chat_id == message_chat_id[i])
+			if (chat_id == message_chat_id[i] && message_chat_id[i])
 			{
-				if (author[i] == user_id)
-					continue;
-				int ret = send(client, messages[i] + 2, sizeof(messages[i]), 0);
-
 				pthread_mutex_lock(&mutex);
+				if (author[i] == user_id || !author[i] || !view_count[i])
+				{
+					pthread_mutex_unlock(&mutex);
+					continue;
+				}
+				//pthread_cond_t cond_var = PTHREAD_COND_INITIALIZER;
+				int ret = send(client, messages[i], sizeof(messages[i]), 0);
+
 				view_count[i]++;
-				pthread_mutex_unlock(&mutex);
+				// pthread_mutex_unlock(&mutex);
 
 				if (ret == SOCKET_ERROR) // если не удалось подключиться к сокету клиента
 				{
-					pthread_mutex_lock(&mutex);
+					//pthread_mutex_lock(&mutex);
 					printf("Error sending data\n");
-					pthread_mutex_unlock(&mutex);
+				//	pthread_mutex_unlock(&mutex);
 					set_online_status(user_id, 0);
 					return (void*)2;
 				}
-				while (view_count[i] < count_online(chat_id));
-				pthread_mutex_lock(&mutex);
-				view_count[i] = 0;
-				author[i] = 0;
-				message_chat_id[i] = 0;
-				messages[i][0] = '\0';
+				//pthread_mutex_lock(&mutex);
+				//while (view_count[i] < count_online(chat_id))
+				//pthread_cond_wait(&cond_var, &mutex);
+				//pthread_mutex_unlock(&mutex);
+				//pthread_mutex_lock(&mutex);
+				if (view_count[i] >= count_online(chat_id))
+				{
+					author[i] = 0;
+					message_chat_id[i] = 0;
+					messages[i][0] = '\0';
+					view_count[i] = 0;
+				}
 				pthread_mutex_unlock(&mutex);
+				while (view_count[i]);
+				break;
 			}
 		}
 	}
@@ -141,7 +153,6 @@ void* ClientStart(void* param)
 					break;
 				}
 				sprintf_s(transmit, "%d %s\n", COMMAND_REG_SUC, "The User logged in successfully!");
-				set_online_status(id, 1);
 				status_flag = LOGGED;
 				break;
 			case CHAT:
@@ -168,6 +179,7 @@ void* ClientStart(void* param)
 				if (!chat_id)
 				{
 					chat_id = create_chat(cmnd.args, cmnd.args_num);
+					set_online_status(id, chat_id);
 					listener_params.chat_id = chat_id;
 					listener_params.user_id = id;
 					listener_params.client_ = client;
@@ -183,6 +195,7 @@ void* ClientStart(void* param)
 				// Если чат существует
 				else
 				{
+					set_online_status(id, chat_id);
 					listener_params.chat_id = chat_id;
 					listener_params.user_id = id;
 					listener_params.client_ = client;
@@ -259,6 +272,7 @@ void* ClientStart(void* param)
 					continue;
 				}
 			case CHAT_EXIT:
+				set_online_status(id, 0);
 				chat_id = 0;
 				pthread_cancel(chat_thread);
 				sprintf_s(transmit, "%d %s\n", EXIT_CHAT, "Pokinyla chat, chat, chat, chat...");
@@ -280,7 +294,6 @@ void* ClientStart(void* param)
 				fprintf(chat_file, "%s", buf + 2);
 				fclose(chat_file);
 				pthread_mutex_unlock(&mutex);
-				printf("COUNT ONLINE, %d", count_online(chat_id));
 				if (count_online(chat_id) > 1) {
 					for (int i = 0; i < MAX_SLOTS; i++)
 					{
@@ -364,6 +377,7 @@ int CreateServer()
 		pthread_detach(mythread);  // Отстегиваем поток от основного, все потоки сами по себе. Дочерний поток завершается и мы об этом не знаем. Он сам по себе
 	}							   // Если основной поток заканчивается, то заканчивается и дочерний
 	pthread_mutex_destroy(&mutex); // Разрушаем мютекс ( на всякий случай )
+	clear_data();
 	printf("Server is stopped\n");
 	closesocket(server);
 	return 0;
